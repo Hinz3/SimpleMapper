@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>SimpleMapper</id>
+    <version>1.0.0</version>
+    <title>SimpleMapper</title>
+    <authors>Hinz3</authors>
+    <owners>Hinz3</owners>
+    <license type="expression">MIT</license>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <readme>README.md</readme>
+    <projectUrl>https://github.com/Hinz3/SimpleMapper</projectUrl>
+    <repository type="git" url="https://github.com/Hinz3/SimpleMapper.git" />
+    <description>Lightweight object mapper for .NET that uses preconfigured expressions instead of reflection at runtime.</description>
+    <summary>Lightweight object mapper with upfront configuration and dependency injection support.</summary>
+    <tags>mapper mapping object-mapper dotnet dependency-injection expressions</tags>
+    <dependencies>
+      <group targetFramework="net10.0">
+        <dependency id="Microsoft.Extensions.DependencyInjection.Abstractions" version="10.0.8" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="README.md" target="" />
+    <file src="LICENSE" target="" />
+    <file src="SimpleMapper\bin\Release\net10.0\SimpleMapper.dll" target="lib\net10.0" />
+    <file src="SimpleMapper\bin\Release\net10.0\SimpleMapper.xml" target="lib\net10.0" />
+  </files>
+</package>

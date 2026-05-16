@@ -6,10 +6,25 @@
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<Nullable>enable</Nullable>
 		<NoWarn>$(NoWarn);CS1591</NoWarn>
+		<PackageId>SimpleMapper</PackageId>
+		<Version>1.0.0</Version>
+		<Title>SimpleMapper</Title>
+		<Authors>Hinz3</Authors>
+		<Description>Lightweight object mapper for .NET that uses preconfigured expressions instead of reflection at runtime.</Description>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageProjectUrl>https://github.com/Hinz3/SimpleMapper</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Hinz3/SimpleMapper.git</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageTags>mapper;mapping;object-mapper;dotnet;dependency-injection;expressions</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 </Project>
