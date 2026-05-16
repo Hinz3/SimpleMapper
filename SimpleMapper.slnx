@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="SimpleMapper.Tests/SimpleMapper.Tests.csproj" />
+  <Project Path="SimpleMapper/SimpleMapper.csproj" />
+</Solution>
