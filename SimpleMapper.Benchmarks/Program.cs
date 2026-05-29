@@ -4,6 +4,7 @@ using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Order;
 using BenchmarkDotNet.Running;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Linq;
 using AutoMapperConfiguration = AutoMapper.MapperConfiguration;
 using SimpleMapperConfiguration = SimpleMapper.Configuration.MapperConfiguration;
 
@@ -16,15 +17,22 @@ public class CollectionMappingBenchmarks
 {
     private IMapper _autoMapper = null!;
     private SimpleMapper.Interfaces.IMapper _simpleMapper = null!;
-    private List<SourceModel> _sourceItems = null!;
+    private List<SourceModel> _sourceList = null!;
+    private SourceModel[] _sourceArray = null!;
+    private IEnumerable<SourceModel> _sourceIterator = null!;
 
     [Params(1_000, 10_000, 50_000)]
     public int ItemCount { get; set; }
 
+    [Params(SourceCollectionShape.List, SourceCollectionShape.Array, SourceCollectionShape.Iterator)]
+    public SourceCollectionShape SourceShape { get; set; }
+
     [GlobalSetup]
     public void GlobalSetup()
     {
-        _sourceItems = CreateSourceItems(ItemCount);
+        _sourceList = CreateSourceItems(ItemCount);
+        _sourceArray = _sourceList.ToArray();
+        _sourceIterator = _sourceList.Select(static item => item);
         _autoMapper = CreateAutoMapper();
         _simpleMapper = CreateSimpleMapper();
         ValidateEquivalentResults();
@@ -33,13 +41,13 @@ public class CollectionMappingBenchmarks
     [Benchmark(Baseline = true)]
     public List<DestinationModel> AutoMapper_Collections()
     {
-        return _autoMapper.Map<List<DestinationModel>>(_sourceItems);
+        return _autoMapper.Map<List<DestinationModel>>(GetCurrentAutoMapperSource());
     }
 
     [Benchmark]
     public List<DestinationModel> SimpleMapper_Collections()
     {
-        return _simpleMapper.Map<SourceModel, DestinationModel>(_sourceItems);
+        return _simpleMapper.Map<SourceModel, DestinationModel>(GetCurrentSimpleMapperSource());
     }
 
     private void ValidateEquivalentResults()
@@ -57,17 +65,36 @@ public class CollectionMappingBenchmarks
             return;
         }
 
-        var firstAutoMapperResult = autoMapperResult[0];
-        var firstSimpleMapperResult = simpleMapperResult[0];
-
-        if (firstAutoMapperResult.DisplayName != firstSimpleMapperResult.DisplayName ||
-            firstAutoMapperResult.Age != firstSimpleMapperResult.Age ||
-            firstAutoMapperResult.Score != firstSimpleMapperResult.Score ||
-            firstAutoMapperResult.City != firstSimpleMapperResult.City ||
-            firstAutoMapperResult.IsActive != firstSimpleMapperResult.IsActive)
+        if (!ResultsMatch(autoMapperResult[0], simpleMapperResult[0]) ||
+            !ResultsMatch(autoMapperResult[^1], simpleMapperResult[^1]))
         {
             throw new InvalidOperationException("Benchmark setup produced different mapped values.");
         }
+    }
+
+    private object GetCurrentAutoMapperSource() => SourceShape switch
+    {
+        SourceCollectionShape.List => _sourceList,
+        SourceCollectionShape.Array => _sourceArray,
+        SourceCollectionShape.Iterator => _sourceIterator,
+        _ => throw new InvalidOperationException($"Unsupported source shape '{SourceShape}'.")
+    };
+
+    private IEnumerable<SourceModel> GetCurrentSimpleMapperSource() => SourceShape switch
+    {
+        SourceCollectionShape.List => _sourceList,
+        SourceCollectionShape.Array => _sourceArray,
+        SourceCollectionShape.Iterator => _sourceIterator,
+        _ => throw new InvalidOperationException($"Unsupported source shape '{SourceShape}'.")
+    };
+
+    private static bool ResultsMatch(DestinationModel left, DestinationModel right)
+    {
+        return left.DisplayName == right.DisplayName &&
+               left.Age == right.Age &&
+               left.Score == right.Score &&
+               left.City == right.City &&
+               left.IsActive == right.IsActive;
     }
 
     private static IMapper CreateAutoMapper()
@@ -115,6 +142,13 @@ public class CollectionMappingBenchmarks
 
         return items;
     }
+}
+
+public enum SourceCollectionShape
+{
+    List,
+    Array,
+    Iterator
 }
 
 public sealed class SourceModel
