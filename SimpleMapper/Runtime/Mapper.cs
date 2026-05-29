@@ -21,18 +21,9 @@ internal sealed class Mapper(MapperConfiguration configuration) : IMapper
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        if (!configuration.TryGet<TSource, TDestination>(out var map))
-        {
-            throw new InvalidOperationException($"No mapping is configured for '{typeof(TSource).Name}' -> '{typeof(TDestination).Name}'.");
-        }
-
+        var map = GetMapOrThrow<TSource, TDestination>();
         var destination = new TDestination();
-        map.ApplyConvention(source, destination);
-        foreach (var assignment in map.Assignments)
-        {
-            assignment(source, destination);
-        }
-
+        map.GetCompiledMap()(source, destination);
         return destination;
     }
 
@@ -51,12 +42,36 @@ internal sealed class Mapper(MapperConfiguration configuration) : IMapper
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        var list = new List<TDestination>();
+        var map = GetMapOrThrow<TSource, TDestination>();
+        var apply = map.GetCompiledMap();
+        var list = source switch
+        {
+            ICollection<TSource> collection => new List<TDestination>(collection.Count),
+            IReadOnlyCollection<TSource> collection => new List<TDestination>(collection.Count),
+            _ => new List<TDestination>()
+        };
+
         foreach (var item in source)
         {
-            list.Add(Map<TSource, TDestination>(item));
+            ArgumentNullException.ThrowIfNull(item);
+
+            var destination = new TDestination();
+            apply(item, destination);
+            list.Add(destination);
         }
 
         return list;
+    }
+
+    private TypeMapDefinition<TSource, TDestination> GetMapOrThrow<TSource, TDestination>()
+        where TSource : class
+        where TDestination : class, new()
+    {
+        if (configuration.TryGet<TSource, TDestination>(out var map))
+        {
+            return map;
+        }
+
+        throw new InvalidOperationException($"No mapping is configured for '{typeof(TSource).Name}' -> '{typeof(TDestination).Name}'.");
     }
 }

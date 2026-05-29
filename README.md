@@ -35,15 +35,26 @@ using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
+var configuration = new MapperConfiguration();
+configuration.CreateMap<User, UserDto>()
+    .Map(destination => destination.FullName, source => source.Name)
+    .Convention(destination => destination.Age, source => source.Age);
+
+services.AddMapper(configuration);
+
+var provider = services.BuildServiceProvider();
+var mapper = provider.GetRequiredService<IMapper>();
+```
+
+You can still use the action overload if you prefer to configure mappings inline:
+
+```csharp
 services.AddMapper(config =>
 {
     config.CreateMap<User, UserDto>()
         .Map(destination => destination.FullName, source => source.Name)
         .Convention(destination => destination.Age, source => source.Age);
 });
-
-var provider = services.BuildServiceProvider();
-var mapper = provider.GetRequiredService<IMapper>();
 ```
 
 ## Reusable mapping classes

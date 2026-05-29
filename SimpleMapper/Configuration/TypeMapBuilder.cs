@@ -35,9 +35,8 @@ public sealed class TypeMapBuilder<TSource, TDestination>
     {
         var destinationName = GetMemberName(destinationProperty);
         var sourceName = TryGetMemberName(sourceProperty);
-        var accessor = sourceProperty.Compile();
-        var setter = CompileObjectSetter(destinationProperty);
-        _definition.AddExplicit(destinationName, accessor, setter, sourceName);
+        var assignment = BuildAssignment(destinationProperty, sourceProperty);
+        _definition.AddExplicit(destinationName, assignment, sourceName);
         return this;
     }
 
@@ -56,7 +55,8 @@ public sealed class TypeMapBuilder<TSource, TDestination>
     {
         var destinationName = GetMemberName(destinationProperty);
         var sourceName = GetMemberName(sourceProperty);
-        _definition.AddConvention(destinationName, sourceName, sourceProperty.Compile(), CompileObjectSetter(destinationProperty));
+        var assignment = BuildAssignment(destinationProperty, sourceProperty);
+        _definition.AddConvention(destinationName, sourceName, assignment);
         return this;
     }
 
@@ -101,21 +101,46 @@ public sealed class TypeMapBuilder<TSource, TDestination>
         return body is MemberExpression memberExpression ? memberExpression.Member.Name : null;
     }
 
-    private static Action<TDestination, object?> CompileObjectSetter(Expression<Func<TDestination, object?>> destinationProperty)
+    private static Expression<Action<TSource, TDestination>> BuildAssignment(
+        Expression<Func<TDestination, object?>> destinationProperty,
+        Expression<Func<TSource, object?>> sourceProperty)
     {
-        var body = destinationProperty.Body is UnaryExpression unary && unary.NodeType == ExpressionType.Convert
-            ? unary.Operand
-            : destinationProperty.Body;
+        var destinationBody = StripConvert(destinationProperty.Body);
+        var sourceBody = StripConvert(sourceProperty.Body);
 
-        if (body is not MemberExpression memberExpression)
+        if (destinationBody is not MemberExpression memberExpression)
         {
             throw new ArgumentException("Expression must point to a member.", nameof(destinationProperty));
         }
 
+        var sourceParameter = Expression.Parameter(typeof(TSource), "source");
         var destinationParameter = Expression.Parameter(typeof(TDestination), "destination");
-        var valueParameter = Expression.Parameter(typeof(object), "value");
-        var convertedValue = Expression.Convert(valueParameter, memberExpression.Type);
-        var assignment = Expression.Assign(Expression.MakeMemberAccess(destinationParameter, memberExpression.Member), convertedValue);
-        return Expression.Lambda<Action<TDestination, object?>>(assignment, destinationParameter, valueParameter).Compile();
+        var reboundSource = ReplaceParameter(sourceBody, sourceProperty.Parameters[0], sourceParameter);
+        var destinationMember = Expression.MakeMemberAccess(destinationParameter, memberExpression.Member);
+        var convertedSource = reboundSource.Type == destinationMember.Type
+            ? reboundSource
+            : Expression.Convert(reboundSource, destinationMember.Type);
+        var assignment = Expression.Assign(destinationMember, convertedSource);
+        return Expression.Lambda<Action<TSource, TDestination>>(assignment, sourceParameter, destinationParameter);
+    }
+
+    private static Expression StripConvert(Expression expression)
+    {
+        return expression is UnaryExpression unary && unary.NodeType == ExpressionType.Convert
+            ? unary.Operand
+            : expression;
+    }
+
+    private static Expression ReplaceParameter(Expression expression, ParameterExpression original, ParameterExpression replacement)
+    {
+        return new ParameterReplaceVisitor(original, replacement).Visit(expression)!;
+    }
+
+    private sealed class ParameterReplaceVisitor(ParameterExpression original, ParameterExpression replacement) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node)
+        {
+            return node == original ? replacement : base.VisitParameter(node);
+        }
     }
 }

@@ -134,7 +134,7 @@ public class MapperTests
     public async Task MapCollection_ThrowsWhenSourceCollectionIsNull()
     {
         var mapper = CreateMapper(config => config.CreateMap<SourceModel, DestinationModel>());
-        await Assert.ThrowsAsync<ArgumentNullException>(async () => mapper.Map<SourceModel, DestinationModel>((IEnumerable<SourceModel>)null));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () => mapper.Map<SourceModel, DestinationModel>((IEnumerable<SourceModel>)null!));
     }
 
     [Fact]
@@ -152,6 +152,43 @@ public class MapperTests
 
         Assert.Equal("Grace", result?.FullName);
         Assert.Equal(85, result?.Age);
+    }
+
+    [Fact]
+    public void AddMapper_PrebuiltConfiguration_Works()
+    {
+        var configuration = new MapperConfiguration();
+        configuration.CreateMap<SourceModel, DestinationModel>()
+            .Map(destination => destination.FullName, source => source.Name)
+            .Convention(destination => destination.Age, source => source.Age);
+
+        var services = new ServiceCollection();
+        services.AddMapper(configuration);
+
+        var provider = services.BuildServiceProvider();
+        var mapper = provider.GetRequiredService<IMapper>();
+        var result = mapper.Map<SourceModel, DestinationModel>(new SourceModel { Name = "Ada", Age = 36 });
+
+        Assert.Equal("Ada", result?.FullName);
+        Assert.Equal(36, result?.Age);
+    }
+
+    [Fact]
+    public void AddMapper_PrebuiltConfiguration_ThrowsWhenServicesIsNull()
+    {
+        IServiceCollection services = null!;
+        var configuration = new MapperConfiguration();
+
+        Assert.Throws<ArgumentNullException>(() => services.AddMapper(configuration));
+    }
+
+    [Fact]
+    public void AddMapper_PrebuiltConfiguration_ThrowsWhenConfigurationIsNull()
+    {
+        var services = new ServiceCollection();
+        MapperConfiguration configuration = null!;
+
+        Assert.Throws<ArgumentNullException>(() => services.AddMapper(configuration));
     }
 
     [Fact]
