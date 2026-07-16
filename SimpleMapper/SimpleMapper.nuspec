@@ -21,8 +21,8 @@
     </dependencies>
   </metadata>
   <files>
-    <file src="..\README.md" target="" />
-    <file src="..\LICENSE" target="" />
+    <file src="..\README.md" target="README.md" />
+    <file src="..\LICENSE" target="LICENSE" />
     <file src="bin\Release\net10.0\SimpleMapper.dll" target="lib\net10.0" />
     <file src="bin\Release\net10.0\SimpleMapper.xml" target="lib\net10.0" />
   </files>
