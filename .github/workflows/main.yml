@@ -1,0 +1,68 @@
+name: Build and Pack NuGet
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-pack:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Compute package version
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$nuspec = Get-Content SimpleMapper/SimpleMapper.nuspec
+          $baseVersion = $nuspec.package.metadata.version | Select-Object -First 1
+
+          if ([string]::IsNullOrWhiteSpace($baseVersion)) {
+            throw "SimpleMapper.nuspec does not define a <version> value."
+          }
+
+          $majorVersion = ($baseVersion -split '\.')[0]
+
+          if ($majorVersion -notmatch '^\d+$') {
+            throw "SimpleMapper.nuspec version '$baseVersion' does not start with a numeric major version."
+          }
+
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            $packageVersion = "$majorVersion.0.${{ github.run_number }}-pr.${{ github.event.pull_request.number }}"
+          }
+          else {
+            $packageVersion = "$majorVersion.0.${{ github.run_number }}"
+          }
+
+          "package_version=$packageVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Restore tests and project references
+        run: dotnet restore SimpleMapper.Tests/SimpleMapper.Tests.csproj
+
+      - name: Build tests and library
+        run: dotnet build SimpleMapper.Tests/SimpleMapper.Tests.csproj --configuration Release --no-restore
+
+      - name: Test library
+        run: dotnet test SimpleMapper.Tests/SimpleMapper.Tests.csproj --configuration Release --no-build
+
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Pack nuspec
+        working-directory: SimpleMapper
+        run: nuget pack SimpleMapper.nuspec -Version ${{ steps.version.outputs.package_version }} -OutputDirectory ../artifacts/nuget
+
+      - name: Upload NuGet artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package-${{ steps.version.outputs.package_version }}
+          path: artifacts/nuget/*.nupkg
+          if-no-files-found: error
